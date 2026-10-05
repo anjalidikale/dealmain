@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Hospital Triage Assistant</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #f5f5f5;
+            color: #222;
+        }
+
+        h1 {
+            color: #1a3a5c;
+            border-bottom: 3px solid #1a3a5c;
+            padding-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #555;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 25px;
+        }
+
+        .select-area {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+            color: #1a3a5c;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            color: white;
+            border: none;
+            padding: 11px 22px;
+            font-size: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        /* Triage button */
+        #triageBtn {
+            background-color: #1a3a5c;
+        }
+
+        #triageBtn:hover {
+            background-color: #2a5a8c;
+        }
+
+        /* Auto Discharge button */
+        #dischargeBtn {
+            background-color: #198754;
+        }
+
+        #dischargeBtn:hover {
+            background-color: #157347;
+        }
+
+        button:disabled {
+            background-color: #999 !important;
+            cursor: not-allowed;
+        }
+
+        .patient-card {
+            background: #e8f0fe;
+            border-left: 4px solid #1a3a5c;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .patient-card h3 {
+            margin: 0 0 8px 0;
+            color: #1a3a5c;
+        }
+
+        .patient-card p {
+            margin: 4px 0;
+            font-size: 14px;
+        }
+
+        .result-box {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            display: none;
+            white-space: pre-wrap;
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .result-box h3 {
+            color: #1a3a5c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        /* Discharge box special styling */
+        #dischargeBox {
+            border-left: 5px solid #198754;
+        }
+
+        #dischargeBox h3 {
+            color: #198754;
+        }
+
+        .status {
+            color: #555;
+            font-style: italic;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .error {
+            background: #fff0f0;
+            border-left: 4px solid #cc0000;
+            padding: 12px 18px;
+            color: #cc0000;
+            border-radius: 0 5px 5px 0;
+            display: none;
+            margin-top: 15px;
+        }
+
+        .model-tag {
+            font-size: 12px;
+            color: #888;
+            margin-top: 15px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h1>Hospital Triage Assistant</h1>
+
+    <p class="subtitle">
+        Powered by Groq AI + MySQL | CareSync Training Project
+    </p>
+
+
+    <!-- =====================================================
+         PATIENT SELECTION
+         ===================================================== -->
+
+    <div class="select-area">
+
+        <label for="patientSelect">
+            Select a Patient:
+        </label>
+
+        <select id="patientSelect" onchange="showPatientInfo()">
+
+            <option value="">
+                -- Loading patients... --
+            </option>
+
+        </select>
+
+
+        <!-- Patient Information -->
+
+        <div class="patient-card" id="patientCard">
+
+            <h3 id="cardName"></h3>
+
+            <p id="cardAge"></p>
+
+            <p id="cardGender"></p>
+
+        </div>
+
+
+        <!-- =================================================
+             ACTION BUTTONS
+             ================================================= -->
+
+        <button
+            id="triageBtn"
+            onclick="runTriage()"
+            disabled>
+            Run AI Triage
+        </button>
+
+
+        <button
+            id="dischargeBtn"
+            onclick="autoDischarge()"
+            disabled>
+            Auto Discharge
+        </button>
+
+
+        <p class="status" id="statusMsg"></p>
+
+        <div class="error" id="errorBox"></div>
+
+    </div>
+
+
+    <!-- =====================================================
+         AI TRIAGE RESULT
+         ===================================================== -->
+
+    <div class="result-box" id="resultBox">
+
+        <h3>
+            AI Triage Assessment
+        </h3>
+
+        <div id="aiResult"></div>
+
+        <p class="model-tag" id="modelTag"></p>
+
+    </div>
+
+
+    <!-- =====================================================
+         AUTO DISCHARGE RESULT
+         ===================================================== -->
+
+    <div class="result-box" id="dischargeBox">
+
+        <h3>
+            Auto Discharge Summary
+        </h3>
+
+        <div id="dischargeResult"></div>
+
+        <p class="model-tag" id="dischargeModelTag"></p>
+
+    </div>
+
+
+    <script>
+
+        // =====================================================
+        // GLOBAL PATIENT DATA
+        // =====================================================
+
+        let allPatients = [];
+
+
+        // =====================================================
+        // FUNCTION 1
+        // LOAD PATIENTS
+        // =====================================================
+
+        async function loadPatients() {
+
+            try {
+
+                const response = await fetch(
+                    'http://localhost:8000/patients'
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to load patients');
+                }
+
+                const data = await response.json();
+
+                allPatients = data.patients;
+
+
+                const select =
+                    document.getElementById('patientSelect');
+
+
+                select.innerHTML =
+                    '<option value="">-- Select a patient --</option>';
+
+
+                allPatients.forEach(patient => {
+
+                    const option =
+                        document.createElement('option');
+
+                    option.value = patient.id;
+
+                    option.textContent =
+                        `${patient.id}. ${patient.name} (${patient.age} yrs, ${patient.gender})`;
+
+                    select.appendChild(option);
+
+                });
+
+
+            } catch (error) {
+
+                document.getElementById('patientSelect').innerHTML =
+                    '<option value="">Error: Backend not running</option>';
+
+                console.error(error);
+
+            }
+
+        }
+
+
+        // =====================================================
+        // FUNCTION 2
+        // SHOW SELECTED PATIENT
+        // =====================================================
+
+        function showPatientInfo() {
+
+            const select =
+                document.getElementById('patientSelect');
+
+            const selectedId =
+                parseInt(select.value);
+
+
+            // Hide old results
+
+            document.getElementById('resultBox').style.display =
+                'none';
+
+            document.getElementById('dischargeBox').style.display =
+                'none';
+
+            document.getElementById('errorBox').style.display =
+                'none';
+
+            document.getElementById('statusMsg').textContent =
+                '';
+
+
+            // No patient selected
+
+            if (!selectedId) {
+
+                document.getElementById('patientCard').style.display =
+                    'none';
+
+                document.getElementById('triageBtn').disabled =
+                    true;
+
+                document.getElementById('dischargeBtn').disabled =
+                    true;
+
+                return;
+
+            }
+
+
+            // Find selected patient
+
+            const patient =
+                allPatients.find(
+                    p => p.id === selectedId
+                );
+
+
+            if (patient) {
+
+                document.getElementById('cardName').textContent =
+                    patient.name;
+
+                document.getElementById('cardAge').textContent =
+                    `Age: ${patient.age} years`;
+
+                document.getElementById('cardGender').textContent =
+                    `Gender: ${patient.gender}`;
+
+
+                document.getElementById('patientCard').style.display =
+                    'block';
+
+
+                // Enable both buttons
+
+                document.getElementById('triageBtn').disabled =
+                    false;
+
+                document.getElementById('dischargeBtn').disabled =
+                    false;
+
+            }
+
+        }
+
+
+        // =====================================================
+        // FUNCTION 3
+        // RUN AI TRIAGE
+        // =====================================================
+
+        async function runTriage() {
+
+            const select =
+                document.getElementById('patientSelect');
+
+            const patientId =
+                select.value;
+
+
+            if (!patientId) return;
+
+
+            const btn =
+                document.getElementById('triageBtn');
+
+
+            btn.disabled = true;
+
+            btn.textContent = 'Running...';
+
+
+            document.getElementById('statusMsg').textContent =
+                'Sending patient data to Groq AI... please wait.';
+
+
+            document.getElementById('resultBox').style.display =
+                'none';
+
+            document.getElementById('errorBox').style.display =
+                'none';
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `http://localhost:8000/triage/${patientId}`,
+                        {
+                            method: 'POST'
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    const err =
+                        await response.json();
+
+                    throw new Error(
+                        err.detail ||
+                        'Unknown error from server'
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                document.getElementById('aiResult').textContent =
+                    data.ai_response;
+
+
+                document.getElementById('modelTag').textContent =
+                    `Model used: ${data.model_used}`;
+
+
+                document.getElementById('resultBox').style.display =
+                    'block';
+
+
+                document.getElementById('statusMsg').textContent =
+                    '';
+
+
+            } catch (error) {
+
+                const errBox =
+                    document.getElementById('errorBox');
+
+                errBox.textContent =
+                    'Error: ' + error.message;
+
+                errBox.style.display =
+                    'block';
+
+                document.getElementById('statusMsg').textContent =
+                    '';
+
+            }
+
+
+            btn.disabled = false;
+
+            btn.textContent =
+                'Run AI Triage';
+
+        }
+
+
+        // =====================================================
+        // FUNCTION 4
+        // AUTO DISCHARGE
+        // =====================================================
+
+        async function autoDischarge() {
+
+            const select =
+                document.getElementById('patientSelect');
+
+            const patientId =
+                select.value;
+
+
+            if (!patientId) {
+
+                alert('Please select a patient first.');
+
+                return;
+
+            }
+
+
+            const btn =
+                document.getElementById('dischargeBtn');
+
+
+            // Disable button while processing
+
+            btn.disabled = true;
+
+            btn.textContent =
+                'Discharging...';
+
+
+            document.getElementById('statusMsg').textContent =
+                'Generating discharge summary using Groq AI... please wait.';
+
+
+            document.getElementById('dischargeBox').style.display =
+                'none';
+
+            document.getElementById('errorBox').style.display =
+                'none';
+
+
+            try {
+
+                // Call FastAPI discharge endpoint
+
+                const response =
+                    await fetch(
+                        `http://localhost:8000/discharge-summary/${patientId}`,
+                        {
+                            method: 'POST'
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    const errorData =
+                        await response.json();
+
+                    throw new Error(
+                        errorData.detail ||
+                        'Discharge failed'
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                // Display discharge summary
+
+                document.getElementById('dischargeResult').textContent =
+                    data.discharge_summary;
+
+
+                document.getElementById('dischargeModelTag').textContent =
+                    `Model used: ${data.model_used}`;
+
+
+                document.getElementById('dischargeBox').style.display =
+                    'block';
+
+
+                document.getElementById('statusMsg').textContent =
+                    'Auto discharge summary generated successfully.';
+
+
+            } catch (error) {
+
+                const errBox =
+                    document.getElementById('errorBox');
+
+
+                errBox.textContent =
+                    'Discharge Error: ' + error.message;
+
+
+                errBox.style.display =
+                    'block';
+
+
+                document.getElementById('statusMsg').textContent =
+                    '';
+
+            }
+
+
+            // Enable button again
+
+            btn.disabled = false;
+
+            btn.textContent =
+                'Auto Discharge';
+
+        }
+
+
+        // =====================================================
+        // LOAD PATIENTS WHEN PAGE OPENS
+        // =====================================================
+
+        loadPatients();
+
+    </script>
+
+</body>
+</html>
